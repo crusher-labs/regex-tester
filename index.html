@@ -95,10 +95,10 @@
         const patternInput = document.getElementById('pattern');
         const testString = document.getElementById('test-string');
         const results = document.getElementById('results');
-        const flags = ['g', 'i', 'm'].filter(f => document.getElementById(f).checked).join('');
 
         function run() {
             try {
+                const flags = ['g', 'i', 'm'].filter(f => document.getElementById(f).checked).join('');
                 const pat = new RegExp(patternInput.value || '.*', flags);
                 const matches = testString.value.match(pat);
                 if (matches) {
