@@ -12,9 +12,9 @@ Test regular expressions against sample text in real time.
 
 This tool runs entirely in your browser. There is no server. No data is uploaded, no telemetry, no analytics. The only network requests fired are the page-load fetches for the framework's CSS / JS (from `cdn.jsdelivr.net` and `fonts.googleapis.com` / `fonts.gstatic.com`); your inputs and outputs never leave the tab.
 
-## Known limitation
+## ReDoS protection
 
-A pathological regex pattern (e.g. nested quantifiers like `^(a+)+$` against a long string) can pin the browser tab while the JavaScript regex engine works through it. Refresh the tab to recover. A worker-based execution timeout is on the roadmap.
+The regex match runs in a Web Worker with a 500 ms wall-clock timeout. If a pathological pattern (e.g. nested quantifiers like `(a*)*b` against a long string) doesn't return in time, the main thread terminates the worker, respawns a fresh one, and shows "Pattern timed out — likely catastrophic backtracking." The tab stays responsive throughout.
 
 ## Framework / hosting
 
