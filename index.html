@@ -100,11 +100,29 @@
         const testString = document.getElementById('test-string');
         const results = document.getElementById('results');
 
-        function run() {
-            try {
-                const flags = ['g', 'i', 'm'].filter(f => document.getElementById(f).checked).join('');
-                const pat = new RegExp(patternInput.value || '.*', flags);
-                const matches = testString.value.match(pat);
+        const WORKER_TIMEOUT_MS = 500;
+        const workerSource = `self.onmessage = (e) => {
+          const { pattern, flags, test } = e.data;
+          try {
+            const pat = new RegExp(pattern || '.*', flags);
+            const matches = test.match(pat);
+            self.postMessage({ ok: true, matches });
+          } catch (err) { self.postMessage({ ok: false, error: err.message }); }
+        };`;
+        const workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'application/javascript' }));
+
+        let worker = null;
+        let pendingTimeout = null;
+
+        function spawnWorker() {
+            worker = new Worker(workerUrl);
+            worker.onmessage = (e) => {
+                if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null; }
+                const { ok, matches, error } = e.data;
+                if (!ok) {
+                    results.textContent = 'Invalid Regex';
+                    return;
+                }
                 if (matches) {
                     const label = document.createElement('span');
                     label.className = 'tool-results-label';
@@ -113,9 +131,20 @@
                 } else {
                     results.textContent = 'No matches';
                 }
-            } catch(e) {
-                results.textContent = 'Invalid Regex';
-            }
+            };
+        }
+        spawnWorker();
+
+        function run() {
+            if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null; }
+            const flags = ['g', 'i', 'm'].filter(f => document.getElementById(f).checked).join('');
+            worker.postMessage({ pattern: patternInput.value, flags, test: testString.value });
+            pendingTimeout = setTimeout(() => {
+                worker.terminate();
+                spawnWorker();
+                results.textContent = 'Pattern timed out — likely catastrophic backtracking. Try a more specific pattern.';
+                pendingTimeout = null;
+            }, WORKER_TIMEOUT_MS);
         }
 
         patternInput.addEventListener('input', run);
